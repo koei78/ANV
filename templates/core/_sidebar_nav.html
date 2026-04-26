@@ -1,0 +1,77 @@
+{% load static %}
+<ul class="nav flex-column py-2">
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+       href="{% url 'dashboard' %}">
+      <i class="bi bi-speedometer2 me-2"></i>ダッシュボード
+    </a>
+  </li>
+
+  <li class="nav-item mt-2">
+    <small class="sidebar-section-label px-3">稼働管理</small>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if 'work_create' in request.resolver_match.url_name %}active{% endif %}"
+       href="{% url 'work_create' %}">
+      <i class="bi bi-plus-circle me-2"></i>稼働登録
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if request.resolver_match.url_name == 'work_list' %}active{% endif %}"
+       href="{% url 'work_list' %}">
+      <i class="bi bi-table me-2"></i>稼働一覧
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if request.resolver_match.url_name == 'transfer_list' %}active{% endif %}"
+       href="{% url 'transfer_list' %}">
+      <i class="bi bi-bank me-2"></i>振込一覧
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if request.resolver_match.url_name == 'sales_rep_report' %}active{% endif %}"
+       href="{% url 'sales_rep_report' %}">
+      <i class="bi bi-person-lines-fill me-2"></i>担当営業レポート
+    </a>
+  </li>
+
+  <li class="nav-item mt-2">
+    <small class="sidebar-section-label px-3">マスター管理</small>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if 'client' in request.resolver_match.url_name %}active{% endif %}"
+       href="{% url 'client_list' %}">
+      <i class="bi bi-building me-2"></i>クライアント先
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if 'partner' in request.resolver_match.url_name %}active{% endif %}"
+       href="{% url 'partner_list' %}">
+      <i class="bi bi-people me-2"></i>パートナー企業
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if 'worker' in request.resolver_match.url_name %}active{% endif %}"
+       href="{% url 'worker_list' %}">
+      <i class="bi bi-person-badge me-2"></i>稼働者
+    </a>
+  </li>
+
+  {% if user.profile.is_admin %}
+  <li class="nav-item mt-2">
+    <small class="sidebar-section-label px-3">設定</small>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link sidebar-link {% if request.resolver_match.url_name == 'company_settings' %}active{% endif %}"
+       href="{% url 'company_settings' %}">
+      <i class="bi bi-gear me-2"></i>会社設定
+    </a>
+  </li>
+  {% endif %}
+
+  <li class="nav-item d-lg-none mt-3 px-3">
+    <a href="{% url 'logout' %}" class="btn btn-outline-secondary btn-sm w-100">
+      <i class="bi bi-box-arrow-right me-1"></i>ログアウト
+    </a>
+  </li>
+</ul>

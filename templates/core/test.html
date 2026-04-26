@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>テスト</title></head>
+<body style="font-family:sans-serif; padding:40px;">
+<h1 style="color:green;">✅ サーバー動作中</h1>
+<p>ユーザー: <strong>{{ user.username }}</strong></p>
+<p>認証済み: <strong>{{ user.is_authenticated }}</strong></p>
+{% if user.is_authenticated %}
+<p style="color:green;">ログイン成功</p>
+<p><a href="/">ダッシュボードへ</a></p>
+{% else %}
+<p style="color:red;">未ログイン → <a href="/login/">ログイン</a></p>
+{% endif %}
+</body>
+</html>

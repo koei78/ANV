@@ -1,0 +1,100 @@
+from django import forms
+from .models import Client, Partner, Worker, WorkRecord, CompanySettings
+
+
+def bootstrap_fields(form):
+    for name, field in form.fields.items():
+        w = field.widget
+        if isinstance(w, forms.Select):
+            w.attrs.setdefault('class', 'form-select')
+        elif isinstance(w, forms.Textarea):
+            w.attrs.setdefault('class', 'form-control')
+            w.attrs.setdefault('rows', 3)
+        elif isinstance(w, forms.CheckboxInput):
+            w.attrs.setdefault('class', 'form-check-input')
+        else:
+            w.attrs.setdefault('class', 'form-control')
+
+
+class ClientForm(forms.ModelForm):
+    class Meta:
+        model = Client
+        fields = ['name', 'store_name', 'contact_name', 'email', 'daily_rate',
+                  'sales_rep', 'payment_terms', 'invoice_method']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        bootstrap_fields(self)
+        self.fields['daily_rate'].widget.attrs['min'] = '0'
+
+
+class PartnerForm(forms.ModelForm):
+    class Meta:
+        model = Partner
+        fields = ['name', 'contact_name', 'bank_name', 'branch_name',
+                  'account_type', 'account_number', 'account_holder']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        bootstrap_fields(self)
+
+
+class WorkerForm(forms.ModelForm):
+    class Meta:
+        model = Worker
+        fields = ['name', 'partner', 'daily_rate', 'notes']
+
+    def __init__(self, *args, **kwargs):
+        company = kwargs.pop('company', None)
+        super().__init__(*args, **kwargs)
+        if company:
+            self.fields['partner'].queryset = Partner.objects.filter(company=company)
+        bootstrap_fields(self)
+        self.fields['daily_rate'].widget.attrs['min'] = '0'
+
+
+MONTH_CHOICES = [(i, f'{i}月') for i in range(1, 13)]
+YEAR_CHOICES = [(y, f'{y}年') for y in range(2024, 2030)]
+
+
+class WorkRecordForm(forms.ModelForm):
+    target_year = forms.ChoiceField(choices=YEAR_CHOICES, label='対象年')
+    target_month = forms.ChoiceField(choices=MONTH_CHOICES, label='対象月')
+
+    class Meta:
+        model = WorkRecord
+        fields = ['target_year', 'target_month', 'client', 'store_name',
+                  'worker', 'days_worked', 'transport_cost', 'memo']
+
+    def __init__(self, *args, **kwargs):
+        company = kwargs.pop('company', None)
+        super().__init__(*args, **kwargs)
+        if company:
+            self.fields['client'].queryset = Client.objects.filter(company=company)
+            self.fields['worker'].queryset = Worker.objects.filter(
+                company=company
+            ).select_related('partner')
+        bootstrap_fields(self)
+        self.fields['store_name'].widget.attrs['readonly'] = True
+        self.fields['store_name'].required = False
+        self.fields['days_worked'].widget.attrs.update({'min': '0', 'step': '0.5'})
+        self.fields['transport_cost'].widget.attrs['min'] = '0'
+
+
+class WorkRecordUpdateForm(WorkRecordForm):
+    class Meta(WorkRecordForm.Meta):
+        fields = WorkRecordForm.Meta.fields + ['status']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['store_name'].widget.attrs.pop('readonly', None)
+
+
+class CompanySettingsForm(forms.ModelForm):
+    class Meta:
+        model = CompanySettings
+        exclude = ['company']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        bootstrap_fields(self)

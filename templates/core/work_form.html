@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% block title %}{% if object %}稼働編集{% else %}稼働登録{% endif %} | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">
+    {% if object %}稼働編集{% else %}稼働登録{% endif %}
+  </h4>
+  <a href="{% url 'work_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>一覧に戻る
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <form method="post" id="workForm">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <!-- 対象月 -->
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold">対象年 <span class="text-danger">*</span></label>
+              {{ form.target_year }}
+              {% if form.target_year.errors %}<div class="text-danger small">{{ form.target_year.errors }}</div>{% endif %}
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">対象月 <span class="text-danger">*</span></label>
+              {{ form.target_month }}
+              {% if form.target_month.errors %}<div class="text-danger small">{{ form.target_month.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          <!-- クライアント・店舗 -->
+          <div class="mb-3">
+            <label class="form-label fw-bold">クライアント先 <span class="text-danger">*</span></label>
+            {{ form.client }}
+            {% if form.client.errors %}<div class="text-danger small">{{ form.client.errors }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">稼働店舗</label>
+            {{ form.store_name }}
+            <div class="form-text">クライアント先を選択すると自動入力されます</div>
+          </div>
+
+          <!-- 稼働者 -->
+          <div class="mb-3">
+            <label class="form-label fw-bold">稼働者 <span class="text-danger">*</span></label>
+            {{ form.worker }}
+            {% if form.worker.errors %}<div class="text-danger small">{{ form.worker.errors }}</div>{% endif %}
+          </div>
+
+          <!-- 数値 -->
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold">出勤数（日） <span class="text-danger">*</span></label>
+              {{ form.days_worked }}
+              {% if form.days_worked.errors %}<div class="text-danger small">{{ form.days_worked.errors }}</div>{% endif %}
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">交通費（円）</label>
+              {{ form.transport_cost }}
+            </div>
+          </div>
+
+          {% if object %}
+          <div class="mb-3">
+            <label class="form-label fw-bold">ステータス</label>
+            {{ form.status }}
+          </div>
+          {% endif %}
+
+          <div class="mb-4">
+            <label class="form-label fw-bold">メモ</label>
+            {{ form.memo }}
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-lg me-1"></i>保存
+            </button>
+            <a href="{% url 'work_list' %}" class="btn btn-outline-secondary">キャンセル</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calculation preview -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-calculator me-2"></i>自動計算プレビュー</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted small">受け単価（日当）</span>
+            <span id="previewClientRate" class="fw-bold">—</span>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted small">パートナー単価（日当）</span>
+            <span id="previewWorkerRate" class="fw-bold">—</span>
+          </div>
+        </div>
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="d-flex justify-content-between mb-2">
+            <span>月初請求額</span>
+            <span id="previewEarly" class="fw-bold fs-6">¥0</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span>月末請求額</span>
+            <span id="previewLate" class="fw-bold fs-6">¥0</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span>パートナー支払い</span>
+            <span id="previewPartner" class="fw-bold fs-6 text-danger">¥0</span>
+          </div>
+        </div>
+        <div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="fw-bold">ANV粗利（月初）</span>
+            <span id="previewGrossEarly" class="fw-bold fs-5 text-success">¥0</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="fw-bold">ANV粗利（月末）</span>
+            <span id="previewGrossLate" class="fw-bold fs-5 text-success">¥0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const clients = {{ clients_json|safe }};
+const workers = {{ workers_json|safe }};
+const clientMap = Object.fromEntries(clients.map(c => [c.id, c]));
+const workerMap = Object.fromEntries(workers.map(w => [w.id, w]));
+
+const clientSel = document.getElementById('id_client');
+const workerSel = document.getElementById('id_worker');
+const storeName = document.getElementById('id_store_name');
+const daysInput = document.getElementById('id_days_worked');
+const transportInput = document.getElementById('id_transport_cost');
+
+function fmt(v) { return '¥' + Math.round(v).toLocaleString(); }
+
+function calc() {
+  const clientId = clientSel.value;
+  const workerId = workerSel.value;
+  const days = parseFloat(daysInput.value) || 0;
+  const transport = parseFloat(transportInput.value) || 0;
+
+  const client = clientMap[clientId];
+  const worker = workerMap[workerId];
+
+  document.getElementById('previewClientRate').textContent = client ? fmt(client.daily_rate) : '—';
+  document.getElementById('previewWorkerRate').textContent = worker ? fmt(worker.daily_rate) : '—';
+
+  if (!client || !worker) return;
+
+  const early = days * client.daily_rate;
+  const late = days * client.daily_rate + transport;
+  const partner = days * worker.daily_rate + transport;
+  const grossEarly = early - partner;
+  const grossLate = late - partner;
+
+  document.getElementById('previewEarly').textContent = fmt(early);
+  document.getElementById('previewLate').textContent = fmt(late);
+  document.getElementById('previewPartner').textContent = fmt(partner);
+
+  const gEEl = document.getElementById('previewGrossEarly');
+  const gLEl = document.getElementById('previewGrossLate');
+  gEEl.textContent = fmt(grossEarly);
+  gLEl.textContent = fmt(grossLate);
+  gEEl.className = 'fw-bold fs-5 ' + (grossEarly >= 0 ? 'text-success' : 'text-danger');
+  gLEl.className = 'fw-bold fs-5 ' + (grossLate >= 0 ? 'text-success' : 'text-danger');
+}
+
+clientSel.addEventListener('change', () => {
+  const client = clientMap[clientSel.value];
+  if (client) storeName.value = client.store_name || '';
+  calc();
+});
+workerSel.addEventListener('change', calc);
+daysInput.addEventListener('input', calc);
+transportInput.addEventListener('input', calc);
+
+// Init on edit
+calc();
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}振込一覧 | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">振込一覧</h4>
+  <form method="get" class="d-flex gap-2">
+    <input type="month" name="month" class="form-control form-control-sm" value="{{ filter_month_str }}">
+    <button type="submit" class="btn btn-sm btn-primary">表示</button>
+  </form>
+</div>
+
+<p class="text-muted mb-3">
+  対象月: <strong>{{ filter_year }}年{{ filter_month }}月</strong> ／
+  合計振込予定: <strong class="text-danger">¥{{ grand_total|floatformat:0 }}</strong>
+</p>
+
+{% if partner_data %}
+{% for pdata in partner_data %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-light">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="mb-0 fw-bold">{{ pdata.partner.name }}</h6>
+        <small class="text-muted">
+          {{ pdata.partner.bank_name }} {{ pdata.partner.branch_name }}
+          {{ pdata.partner.get_account_type_display }} {{ pdata.partner.account_number }}
+          {{ pdata.partner.account_holder }}
+        </small>
+      </div>
+      <div class="text-end">
+        <div class="text-muted small">振込合計</div>
+        <div class="fw-bold fs-5 text-danger">¥{{ pdata.total|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>クライアント先</th><th>稼働者</th>
+            <th class="text-end">出勤数</th><th class="text-end">パートナー単価</th>
+            <th class="text-end">交通費</th><th class="text-end">振込額</th><th>ステータス</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in pdata.records %}
+          <tr>
+            <td>{{ r.client.name }}{% if r.store_name %} ({{ r.store_name }}){% endif %}</td>
+            <td>{{ r.worker.name }}</td>
+            <td class="text-end">{{ r.days_worked }}日</td>
+            <td class="text-end">¥{{ r.worker.daily_rate|floatformat:0 }}</td>
+            <td class="text-end">¥{{ r.transport_cost|floatformat:0 }}</td>
+            <td class="text-end fw-bold">¥{{ r.partner_payment|floatformat:0 }}</td>
+            <td><span class="badge bg-{{ r.status_badge }}">{{ r.get_status_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+  この月の振込データがありません
+</div>
+{% endif %}
+{% endblock %}

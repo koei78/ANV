@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}削除確認 | ANV{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>削除確認</h5>
+      </div>
+      <div class="card-body">
+        <p class="mb-1">以下のデータを削除してもよろしいですか？</p>
+        <p class="fw-bold fs-5 text-danger">{{ object_name }}</p>
+        <p class="text-muted small">この操作は取り消せません。</p>
+        <form method="post" class="d-flex gap-2 mt-4">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger px-4">
+            <i class="bi bi-trash me-1"></i>削除する
+          </button>
+          <a href="{{ cancel_url }}" class="btn btn-outline-secondary">キャンセル</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

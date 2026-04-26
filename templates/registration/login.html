@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン | ANV 請求・稼働管理</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background: #f0f4f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { width: 100%; max-width: 400px; }
+    .login-header { background: #1a2b4a; color: white; border-radius: .5rem .5rem 0 0; padding: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-header">
+      <i class="bi bi-buildings-fill fs-2 mb-2 d-block"></i>
+      <h4 class="mb-0 fw-bold">ANV 請求・稼働管理</h4>
+    </div>
+    <div class="card shadow-sm rounded-0 rounded-bottom border-top-0">
+      <div class="card-body p-4">
+        {% if form.errors %}
+        <div class="alert alert-danger py-2">
+          <i class="bi bi-exclamation-triangle me-2"></i>ユーザー名またはパスワードが正しくありません。
+        </div>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-bold">ユーザー名</label>
+            <input type="text" name="username" class="form-control form-control-lg" autofocus required>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-bold">パスワード</label>
+            <input type="password" name="password" class="form-control form-control-lg" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg w-100">
+            <i class="bi bi-box-arrow-in-right me-2"></i>ログイン
+          </button>
+          <input type="hidden" name="next" value="{{ next }}">
+        </form>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

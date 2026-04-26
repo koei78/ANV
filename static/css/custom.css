@@ -1,0 +1,157 @@
+/* ── Variables ── */
+:root {
+  --sidebar-bg: #1a2b4a;
+  --sidebar-width: 230px;
+  --topnav-bg: #1a2b4a;
+}
+
+/* ── Layout ── */
+body {
+  font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+  font-size: 14px;
+  background: #f0f4f8;
+}
+
+.anv-sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: var(--sidebar-bg);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.anv-main {
+  min-height: 100vh;
+  max-width: calc(100vw - var(--sidebar-width));
+}
+
+.anv-topnav {
+  background: var(--topnav-bg);
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+/* offcanvas (mobile) には sidebar の position: sticky を適用しない */
+.anv-offcanvas {
+  background: var(--sidebar-bg) !important;
+  width: var(--sidebar-width) !important;
+}
+
+/* offcanvas は常に fixed positioning を維持（normal flow に入らない） */
+.offcanvas {
+  position: fixed !important;
+}
+
+/* ── Sidebar Nav ── */
+.sidebar-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #8899bb;
+  font-weight: 700;
+}
+
+.sidebar-link {
+  color: #c8d6f0 !important;
+  padding: .5rem 1rem;
+  border-radius: .375rem;
+  margin: 1px .5rem;
+  font-size: .875rem;
+  transition: background .15s;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, .1) !important;
+  color: #fff !important;
+}
+
+.sidebar-link.active {
+  background: rgba(255, 255, 255, .18) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+/* ── KPI Cards ── */
+.kpi-card {
+  border-radius: .75rem;
+}
+
+.kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #6c757d;
+  font-weight: 600;
+  margin-bottom: .25rem;
+}
+
+.kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a2b4a;
+  white-space: nowrap;
+}
+
+/* ── Tables ── */
+.table th {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+/* ── XS Buttons ── */
+.btn-xs {
+  padding: .2rem .45rem;
+  font-size: .75rem;
+  border-radius: .25rem;
+  line-height: 1.4;
+  min-height: 28px;
+  min-width: 28px;
+}
+
+/* ── Cards ── */
+.card {
+  border-radius: .75rem;
+}
+.card-header {
+  border-radius: .75rem .75rem 0 0 !important;
+}
+
+/* ── Forms ── */
+.form-control:focus,
+.form-select:focus {
+  border-color: #1a2b4a;
+  box-shadow: 0 0 0 .2rem rgba(26, 43, 74, .2);
+}
+
+/* ── Mobile responsive table ── */
+@media (max-width: 991.98px) {
+  .anv-main {
+    max-width: 100vw;
+  }
+}
+
+/* ── Touch targets ── */
+@media (max-width: 767px) {
+  .btn, .form-control, .form-select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+  .btn-xs {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  .btn-sm {
+    min-height: 40px;
+  }
+}
+
+/* ── Alert badges ── */
+.alert.py-2 {
+  line-height: 1.3;
+}

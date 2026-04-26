@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}ダッシュボード | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">ダッシュボード</h4>
+  <span class="text-muted">{{ current_year }}年{{ current_month }}月</span>
+</div>
+
+<!-- Alerts -->
+{% if alert_pending > 0 or alert_waiting > 0 %}
+<div class="row g-2 mb-3">
+  {% if alert_pending > 0 %}
+  <div class="col-auto">
+    <a href="{% url 'work_list' %}?status=pending" class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center text-decoration-none">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      未対応 <strong class="ms-1">{{ alert_pending }}件</strong>
+    </a>
+  </div>
+  {% endif %}
+  {% if alert_waiting > 0 %}
+  <div class="col-auto">
+    <a href="{% url 'transfer_list' %}" class="alert alert-danger py-2 px-3 mb-0 d-flex align-items-center text-decoration-none">
+      <i class="bi bi-bank-fill me-2"></i>
+      振込待ち <strong class="ms-1">{{ alert_waiting }}件</strong>
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="kpi-label">今月 月初請求額</div>
+        <div class="kpi-value">¥{{ total_early|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="kpi-label">今月 月末請求額</div>
+        <div class="kpi-value">¥{{ total_late|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card border-0 shadow-sm h-100 border-start border-4 border-success">
+      <div class="card-body">
+        <div class="kpi-label">今月 粗利（月初ベース）</div>
+        <div class="kpi-value text-success">¥{{ total_gross|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card kpi-card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="kpi-label">今月 稼働件数</div>
+        <div class="kpi-value">{{ current_records|length }}件</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Chart -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold mb-0">月別 粗利推移（直近6ヶ月）</h6>
+      </div>
+      <div class="card-body">
+        <canvas id="grossChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status breakdown -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold mb-0">ステータス別件数（全期間）</h6>
+      </div>
+      <div class="card-body">
+        {% for status, label, count in status_items %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="badge bg-{% if status == 'pending' %}secondary{% elif status == 'early_sent' %}info{% elif status == 'late_sent' %}primary{% elif status == 'waiting_transfer' %}warning text-dark{% else %}success{% endif %} me-2">
+            {{ label }}
+          </span>
+          <strong>{{ count }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Client ranking -->
+{% if client_ranking %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0 pt-3 pb-0">
+    <h6 class="fw-bold mb-0">今月 クライアント別粗利</h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr><th>クライアント</th><th class="text-end">粗利</th></tr>
+        </thead>
+        <tbody>
+          {% for name, profit in client_ranking %}
+          <tr>
+            <td>{{ name }}</td>
+            <td class="text-end fw-bold {% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+              ¥{{ profit|floatformat:0 }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Recent records -->
+{% if current_records %}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between">
+    <h6 class="fw-bold mb-0">今月の稼働一覧</h6>
+    <a href="{% url 'work_list' %}" class="btn btn-sm btn-outline-primary">すべて見る</a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>クライアント</th><th>稼働者</th><th class="text-end">出勤</th>
+            <th class="text-end">月初請求</th><th class="text-end">粗利</th><th>ステータス</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in current_records %}
+          <tr>
+            <td>{{ r.client.name }}{% if r.store_name %}<br><small class="text-muted">{{ r.store_name }}</small>{% endif %}</td>
+            <td>{{ r.worker.name }}</td>
+            <td class="text-end">{{ r.days_worked }}日</td>
+            <td class="text-end">¥{{ r.early_invoice_amount|floatformat:0 }}</td>
+            <td class="text-end {% if r.gross_profit_early >= 0 %}text-success{% else %}text-danger{% endif %}">
+              ¥{{ r.gross_profit_early|floatformat:0 }}
+            </td>
+            <td>
+              <span class="badge bg-{{ r.status_badge }}">{{ r.get_status_display }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const labels = {{ chart_labels|safe }};
+const data = {{ chart_data|safe }};
+const ctx = document.getElementById('grossChart');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      label: '粗利（円）',
+      data,
+      backgroundColor: data.map(v => v >= 0 ? 'rgba(25,135,84,0.7)' : 'rgba(220,53,69,0.7)'),
+      borderColor: data.map(v => v >= 0 ? '#198754' : '#dc3545'),
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        ticks: { callback: v => '¥' + v.toLocaleString() }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

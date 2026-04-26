@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}稼働者一覧 | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">稼働者</h4>
+  {% if user.profile.is_admin %}
+  <a href="{% url 'worker_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>新規登録
+  </a>
+  {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>氏名</th><th>所属パートナー企業</th><th class="text-end">パートナー単価（日当）</th>
+            <th>備考</th>{% if user.profile.is_admin %}<th>操作</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in workers %}
+          <tr>
+            <td class="fw-bold">{{ w.name }}</td>
+            <td>{{ w.partner.name }}</td>
+            <td class="text-end fw-bold">¥{{ w.daily_rate|floatformat:0 }}</td>
+            <td><small class="text-muted">{{ w.notes|truncatechars:40 }}</small></td>
+            {% if user.profile.is_admin %}
+            <td class="text-nowrap">
+              <a href="{% url 'worker_update' w.pk %}" class="btn btn-xs btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'worker_delete' w.pk %}" class="btn btn-xs btn-outline-danger ms-1">
+                <i class="bi bi-trash"></i>
+              </a>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-4">登録されていません</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
