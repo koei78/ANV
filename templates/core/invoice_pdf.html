@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: A4;
+  margin: 18mm 20mm 20mm 20mm;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, 'MS PGothic', sans-serif;
+  font-size: 10pt;
+  color: #222;
+  line-height: 1.5;
+}
+h1 { font-size: 22pt; font-weight: 900; letter-spacing: .2em; color: #1a2b4a; }
+.label { font-size: 8pt; color: #888; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14pt; }
+.header-right { text-align: right; }
+.header-right .inv-num { font-size: 13pt; font-weight: 700; }
+hr { border: none; border-top: 1.5pt solid #1a2b4a; margin: 10pt 0; }
+.parties { display: flex; justify-content: space-between; margin: 14pt 0; }
+.bill-to { font-size: 14pt; font-weight: 700; }
+.issuer { text-align: right; font-size: 9.5pt; }
+.issuer .issuer-name { font-size: 12pt; font-weight: 700; }
+.subject { background: #f0f4f8; padding: 7pt 10pt; border-radius: 3pt; margin: 14pt 0; font-size: 10.5pt; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 14pt; }
+.detail-table th {
+  background: #1a2b4a;
+  color: #fff;
+  padding: 5pt 7pt;
+  font-size: 9pt;
+  font-weight: 700;
+  text-align: center;
+}
+.detail-table td { padding: 5pt 7pt; border-bottom: 0.5pt solid #ddd; font-size: 9.5pt; }
+.detail-table tr:nth-child(even) td { background: #f8f9fa; }
+.text-right { text-align: right; }
+.total-table { width: 200pt; margin-left: auto; }
+.total-table td { padding: 4pt 7pt; font-size: 9.5pt; }
+.total-row td { background: #1a2b4a; color: #fff; font-size: 12pt; font-weight: 700; padding: 6pt 10pt; }
+.bank-box { border: 0.7pt solid #ccc; padding: 8pt 10pt; border-radius: 3pt; margin-top: 14pt; font-size: 9.5pt; }
+.bank-title { font-weight: 700; margin-bottom: 4pt; font-size: 10pt; }
+.notes { margin-top: 12pt; font-size: 9pt; color: #555; }
+.footer { position: fixed; bottom: 8mm; right: 20mm; font-size: 7.5pt; color: #aaa; }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div class="header">
+  <div>
+    <h1>請　求　書</h1>
+  </div>
+  <div class="header-right">
+    <div class="label">請求書番号</div>
+    <div class="inv-num">{{ invoice.invoice_number }}</div>
+    <div class="label" style="margin-top:6pt;">発行日</div>
+    <div>{{ invoice.issue_date }}</div>
+    {% if invoice.due_date %}
+    <div class="label" style="margin-top:6pt;">支払期限</div>
+    <div style="font-weight:700; color:#c0392b;">{{ invoice.due_date }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<hr>
+
+<!-- 宛先 / 発行者 -->
+<div class="parties">
+  <div>
+    <div class="label">請求先</div>
+    <div class="bill-to">{{ invoice.client.name }}&nbsp;御中</div>
+    {% if invoice.client.store_name %}
+    <div style="color:#555;">{{ invoice.client.store_name }}</div>
+    {% endif %}
+    {% if invoice.client.contact_name %}
+    <div style="font-size:9pt; color:#555;">ご担当：{{ invoice.client.contact_name }}&nbsp;様</div>
+    {% endif %}
+  </div>
+  <div class="issuer">
+    <div class="label">発行者</div>
+    {% if settings %}
+    <div class="issuer-name">{{ settings.company_name|default:invoice.company.name }}</div>
+    {% if settings.postal_code %}<div>〒{{ settings.postal_code }}</div>{% endif %}
+    {% if settings.address %}<div>{{ settings.address }}</div>{% endif %}
+    {% if settings.phone %}<div>TEL: {{ settings.phone }}</div>{% endif %}
+    {% else %}
+    <div class="issuer-name">{{ invoice.company.name }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 件名 -->
+<div class="subject">
+  <span style="color:#666; font-size:9pt;">件名：</span>
+  <strong>{{ invoice.target_year }}年{{ invoice.target_month }}月分&nbsp;業務委託費</strong>
+</div>
+
+<!-- 明細 -->
+<table class="detail-table">
+  <thead>
+    <tr>
+      <th style="width:22%; text-align:left;">稼働者</th>
+      <th style="width:18%; text-align:left;">稼働店舗</th>
+      <th style="width:10%;">出勤数</th>
+      <th style="width:14%;">日当単価</th>
+      <th style="width:12%;">交通費</th>
+      <th style="width:14%; text-align:right;">金額</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in records %}
+    <tr>
+      <td>{{ r.worker.name }}</td>
+      <td style="color:#555; font-size:9pt;">{{ r.store_name|default:invoice.client.store_name|default:"" }}</td>
+      <td class="text-right">{{ r.days_worked }}日</td>
+      <td class="text-right">¥{{ r.client.daily_rate|floatformat:0 }}</td>
+      <td class="text-right">{% if r.transport_cost %}¥{{ r.transport_cost|floatformat:0 }}{% else %}―{% endif %}</td>
+      <td class="text-right" style="font-weight:700;">¥{{ r.late_invoice_amount|floatformat:0 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" style="text-align:center; color:#999; padding:12pt;">稼働記録がありません</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- 合計 -->
+<table class="total-table">
+  <tr>
+    <td style="color:#555;">小計</td>
+    <td class="text-right" style="font-weight:700;">¥{{ invoice.subtotal|floatformat:0 }}</td>
+  </tr>
+  <tr>
+    <td style="color:#555;">消費税（{{ invoice.tax_rate }}%）</td>
+    <td class="text-right">¥{{ invoice.tax_amount|floatformat:0 }}</td>
+  </tr>
+  <tr class="total-row">
+    <td>請求合計</td>
+    <td class="text-right">¥{{ invoice.total_amount|floatformat:0 }}</td>
+  </tr>
+</table>
+
+<!-- 振込先 -->
+{% if settings and settings.bank_name %}
+<div class="bank-box">
+  <div class="bank-title">お振込先</div>
+  <div>{{ settings.bank_name }}&nbsp;{{ settings.branch_name }}&nbsp;
+    {{ settings.get_account_type_display }}&nbsp;{{ settings.account_number }}</div>
+  <div>口座名義：{{ settings.account_holder }}</div>
+</div>
+{% endif %}
+
+{% if invoice.notes %}
+<div class="notes">
+  <div style="font-weight:700; margin-bottom:3pt;">備考</div>
+  <div>{{ invoice.notes }}</div>
+</div>
+{% endif %}
+
+<div class="footer">{{ invoice.invoice_number }}</div>
+</body>
+</html>

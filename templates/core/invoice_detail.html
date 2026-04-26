@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}{{ invoice.invoice_number }} | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">
+    <i class="bi bi-receipt me-2"></i>{{ invoice.invoice_number }}
+    <span class="badge bg-{{ invoice.status_badge }} ms-2 fs-6">{{ invoice.get_status_display }}</span>
+  </h4>
+  <div class="d-flex gap-2">
+    <a href="{% url 'invoice_pdf' invoice.pk %}" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i>PDFダウンロード
+    </a>
+    <a href="{% url 'invoice_update' invoice.pk %}" class="btn btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>編集
+    </a>
+    <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>一覧
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- 請求書プレビュー -->
+  <div class="col-lg-9">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5" style="background:#fff;">
+
+        <!-- ヘッダー -->
+        <div class="row mb-4">
+          <div class="col">
+            <h2 class="fw-bold mb-0" style="color:#1a2b4a; letter-spacing:.1em;">請　求　書</h2>
+          </div>
+          <div class="col text-end">
+            <div class="text-muted small">請求書番号</div>
+            <div class="fw-bold fs-5">{{ invoice.invoice_number }}</div>
+            <div class="text-muted small mt-1">発行日</div>
+            <div>{{ invoice.issue_date }}</div>
+            {% if invoice.due_date %}
+            <div class="text-muted small mt-1">支払期限</div>
+            <div class="fw-bold text-danger">{{ invoice.due_date }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- 宛先 / 発行者 -->
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <div class="text-muted small mb-1">請求先</div>
+            <div class="fs-5 fw-bold">{{ invoice.client.name }} 御中</div>
+            {% if invoice.client.store_name %}
+            <div class="text-muted">{{ invoice.client.store_name }}</div>
+            {% endif %}
+            {% if invoice.client.contact_name %}
+            <div class="small">ご担当: {{ invoice.client.contact_name }} 様</div>
+            {% endif %}
+          </div>
+          <div class="col-md-6 text-md-end">
+            <div class="text-muted small mb-1">発行者</div>
+            {% if settings %}
+            <div class="fw-bold">{{ settings.company_name|default:invoice.company.name }}</div>
+            {% if settings.postal_code %}<div class="small">〒{{ settings.postal_code }}</div>{% endif %}
+            {% if settings.address %}<div class="small">{{ settings.address }}</div>{% endif %}
+            {% if settings.phone %}<div class="small">TEL: {{ settings.phone }}</div>{% endif %}
+            {% else %}
+            <div class="fw-bold">{{ invoice.company.name }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- 件名 -->
+        <div class="mb-4 p-3 rounded" style="background:#f0f4f8;">
+          <span class="text-muted small me-2">件名:</span>
+          <strong>{{ invoice.target_year }}年{{ invoice.target_month }}月分 業務委託費</strong>
+        </div>
+
+        <!-- 明細テーブル -->
+        <table class="table table-bordered mb-4">
+          <thead style="background:#1a2b4a; color:#fff;">
+            <tr>
+              <th>稼働者</th>
+              <th>稼働店舗</th>
+              <th class="text-end">出勤数</th>
+              <th class="text-end">日当単価</th>
+              <th class="text-end">交通費</th>
+              <th class="text-end">金額</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in records %}
+            <tr>
+              <td>{{ r.worker.name }}</td>
+              <td class="text-muted small">{{ r.store_name|default:invoice.client.store_name|default:"―" }}</td>
+              <td class="text-end">{{ r.days_worked }}日</td>
+              <td class="text-end">¥{{ r.client.daily_rate|floatformat:0 }}</td>
+              <td class="text-end">{% if r.transport_cost %}¥{{ r.transport_cost|floatformat:0 }}{% else %}―{% endif %}</td>
+              <td class="text-end fw-bold">¥{{ r.late_invoice_amount|floatformat:0 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-3">稼働記録がありません</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <!-- 合計 -->
+        <div class="row justify-content-end">
+          <div class="col-md-5">
+            <table class="table table-sm mb-0">
+              <tr>
+                <td class="text-muted">小計</td>
+                <td class="text-end fw-bold">¥{{ invoice.subtotal|floatformat:0 }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">消費税（{{ invoice.tax_rate }}%）</td>
+                <td class="text-end">¥{{ invoice.tax_amount|floatformat:0 }}</td>
+              </tr>
+              <tr style="background:#1a2b4a; color:#fff;">
+                <td class="fw-bold fs-5">合計</td>
+                <td class="text-end fw-bold fs-5">¥{{ invoice.total_amount|floatformat:0 }}</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- 振込先 -->
+        {% if settings and settings.bank_name %}
+        <div class="mt-4 p-3 rounded border">
+          <div class="fw-bold mb-2"><i class="bi bi-bank me-1"></i>お振込先</div>
+          <div>{{ settings.bank_name }} {{ settings.branch_name }}
+            {{ settings.get_account_type_display }} {{ settings.account_number }}</div>
+          <div>口座名義: {{ settings.account_holder }}</div>
+        </div>
+        {% endif %}
+
+        {% if invoice.notes %}
+        <div class="mt-4">
+          <div class="fw-bold mb-1">備考</div>
+          <div class="text-muted small">{{ invoice.notes|linebreaksbr }}</div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+
+  <!-- サイドパネル -->
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-light fw-bold py-2">情報</div>
+      <div class="card-body">
+        <div class="small text-muted mb-1">作成日</div>
+        <div class="mb-2">{{ invoice.created_at|date:"Y/m/d H:i" }}</div>
+        <div class="small text-muted mb-1">更新日</div>
+        <div>{{ invoice.updated_at|date:"Y/m/d H:i" }}</div>
+      </div>
+    </div>
+    <div class="d-grid gap-2">
+      <a href="{% url 'invoice_pdf' invoice.pk %}" class="btn btn-danger">
+        <i class="bi bi-file-earmark-pdf me-1"></i>PDFダウンロード
+      </a>
+      <a href="{% url 'invoice_update' invoice.pk %}" class="btn btn-outline-primary">
+        <i class="bi bi-pencil me-1"></i>編集
+      </a>
+      <a href="{% url 'invoice_delete' invoice.pk %}" class="btn btn-outline-danger">
+        <i class="bi bi-trash me-1"></i>削除
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

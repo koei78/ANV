@@ -238,3 +238,75 @@ class WorkRecord(models.Model):
         if next_s:
             return dict(self.STATUS_CHOICES)[next_s]
         return None
+
+
+class Invoice(models.Model):
+    STATUS_CHOICES = [
+        ('draft', '下書き'),
+        ('issued', '発行済'),
+        ('paid', '入金済'),
+    ]
+    STATUS_BADGE = {
+        'draft': 'secondary',
+        'issued': 'primary',
+        'paid': 'success',
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='invoices')
+    invoice_number = models.CharField(max_length=50, verbose_name='請求書番号')
+    client = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name='invoices',
+        verbose_name='クライアント'
+    )
+    issue_date = models.DateField(verbose_name='発行日')
+    due_date = models.DateField(verbose_name='支払期限', blank=True, null=True)
+    target_year = models.IntegerField(verbose_name='対象年')
+    target_month = models.IntegerField(verbose_name='対象月')
+    tax_rate = models.IntegerField(default=10, verbose_name='消費税率(%)')
+    notes = models.TextField(blank=True, verbose_name='備考')
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='draft', verbose_name='ステータス'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = '請求書'
+        verbose_name_plural = '請求書'
+        ordering = ['-issue_date', '-created_at']
+        unique_together = [['company', 'invoice_number']]
+
+    def __str__(self):
+        return f'{self.invoice_number} - {self.client.name}'
+
+    @property
+    def target_month_display(self):
+        return f'{self.target_year}年{self.target_month}月'
+
+    def get_work_records(self):
+        return WorkRecord.objects.filter(
+            company=self.company,
+            client=self.client,
+            target_year=self.target_year,
+            target_month=self.target_month,
+        ).select_related('worker')
+
+    @property
+    def subtotal(self):
+        return sum(r.late_invoice_amount for r in self.get_work_records())
+
+    @property
+    def tax_amount(self):
+        from decimal import ROUND_HALF_UP
+        return (self.subtotal * Decimal(self.tax_rate) / 100).quantize(
+            Decimal('1'), rounding=ROUND_HALF_UP
+        )
+
+    @property
+    def total_amount(self):
+        return self.subtotal + self.tax_amount
+
+    @property
+    def status_badge(self):
+        return self.STATUS_BADGE.get(self.status, 'secondary')

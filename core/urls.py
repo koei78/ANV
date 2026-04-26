@@ -24,6 +24,14 @@ urlpatterns = [
     # Sales Rep Report
     path('report/sales-rep/', views.SalesRepReportView.as_view(), name='sales_rep_report'),
 
+    # Invoices
+    path('invoices/', views.InvoiceListView.as_view(), name='invoice_list'),
+    path('invoices/new/', views.InvoiceCreateView.as_view(), name='invoice_create'),
+    path('invoices/<uuid:pk>/', views.InvoiceDetailView.as_view(), name='invoice_detail'),
+    path('invoices/<uuid:pk>/edit/', views.InvoiceUpdateView.as_view(), name='invoice_update'),
+    path('invoices/<uuid:pk>/delete/', views.InvoiceDeleteView.as_view(), name='invoice_delete'),
+    path('invoices/<uuid:pk>/pdf/', views.invoice_pdf, name='invoice_pdf'),
+
     # Master: Clients
     path('master/clients/', views.ClientListView.as_view(), name='client_list'),
     path('master/clients/new/', views.ClientCreateView.as_view(), name='client_create'),
@@ -48,4 +56,5 @@ urlpatterns = [
     # AJAX
     path('api/client-info/', views.api_client_info, name='api_client_info'),
     path('api/worker-info/', views.api_worker_info, name='api_worker_info'),
+    path('api/invoice-preview/', views.api_invoice_preview, name='api_invoice_preview'),
 ]

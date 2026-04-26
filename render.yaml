@@ -2,7 +2,7 @@ services:
   - type: web
     name: anv-billing
     env: python
-    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
+    buildCommand: "apt-get install -y fonts-noto-cjk libpango-1.0-0 libpangocairo-1.0-0 libcairo2 || true && pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
     startCommand: "gunicorn anv_billing.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60"
     envVars:
       - key: SECRET_KEY

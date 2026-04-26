@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-receipt me-2"></i>{{ title }}</h4>
+  <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>一覧に戻る
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <form method="post" id="invoiceForm">
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">請求書番号 <span class="text-danger">*</span></label>
+              {{ form.invoice_number }}
+              {% if form.invoice_number.errors %}<div class="text-danger small">{{ form.invoice_number.errors }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">クライアント <span class="text-danger">*</span></label>
+              {{ form.client }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">対象年</label>
+              {{ form.target_year }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">対象月</label>
+              {{ form.target_month }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">発行日</label>
+              {{ form.issue_date }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">支払期限</label>
+              {{ form.due_date }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">消費税率(%)</label>
+              {{ form.tax_rate }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold">ステータス</label>
+              {{ form.status }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">備考</label>
+              {{ form.notes }}
+            </div>
+          </div>
+          <hr class="my-4">
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>保存
+            </button>
+            <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary">キャンセル</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light fw-bold py-2">
+        <i class="bi bi-info-circle me-1"></i>稼働記録プレビュー
+      </div>
+      <div class="card-body p-0" id="previewArea">
+        <div class="text-center text-muted py-4 small">
+          クライアントと対象月を選択すると<br>稼働記録が表示されます
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const clientSel = document.getElementById('id_client');
+const yearSel   = document.getElementById('id_target_year');
+const monthSel  = document.getElementById('id_target_month');
+const preview   = document.getElementById('previewArea');
+
+async function loadPreview() {
+  const client = clientSel.value;
+  const year   = yearSel.value;
+  const month  = monthSel.value;
+  if (!client || !year || !month) return;
+
+  preview.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>';
+
+  try {
+    const res = await fetch(`/api/invoice-preview/?client=${client}&year=${year}&month=${month}`);
+    const data = await res.json();
+    if (!data.records.length) {
+      preview.innerHTML = '<div class="text-center text-muted py-4 small">該当する稼働記録がありません</div>';
+      return;
+    }
+    let rows = data.records.map(r =>
+      `<tr>
+        <td class="small">${r.worker}</td>
+        <td class="text-end small">${r.days}</td>
+        <td class="text-end small">¥${r.amount.toLocaleString()}</td>
+      </tr>`
+    ).join('');
+    preview.innerHTML = `
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>稼働者</th><th class="text-end">日数</th><th class="text-end">金額</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr class="fw-bold table-light">
+          <td colspan="2" class="text-end">小計</td>
+          <td class="text-end">¥${data.subtotal.toLocaleString()}</td>
+        </tr></tfoot>
+      </table>`;
+  } catch(e) {
+    preview.innerHTML = '<div class="text-center text-muted py-4 small">読み込みエラー</div>';
+  }
+}
+
+clientSel.addEventListener('change', loadPreview);
+yearSel.addEventListener('change', loadPreview);
+monthSel.addEventListener('change', loadPreview);
+loadPreview();
+</script>
+{% endblock %}

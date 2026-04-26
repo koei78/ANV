@@ -1,5 +1,5 @@
 from django import forms
-from .models import Client, Partner, Worker, WorkRecord, CompanySettings
+from .models import Client, Partner, Worker, WorkRecord, CompanySettings, Invoice
 
 
 def bootstrap_fields(form):
@@ -88,6 +88,31 @@ class WorkRecordUpdateForm(WorkRecordForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['store_name'].widget.attrs.pop('readonly', None)
+
+
+class InvoiceForm(forms.ModelForm):
+    class Meta:
+        model = Invoice
+        fields = ['invoice_number', 'client', 'target_year', 'target_month',
+                  'issue_date', 'due_date', 'tax_rate', 'notes', 'status']
+        widgets = {
+            'issue_date': forms.DateInput(attrs={'type': 'date'}),
+            'due_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        company = kwargs.pop('company', None)
+        super().__init__(*args, **kwargs)
+        if company:
+            self.fields['client'].queryset = Client.objects.filter(company=company)
+        self.fields['target_year'] = forms.ChoiceField(
+            choices=YEAR_CHOICES, label='対象年', initial=2026
+        )
+        self.fields['target_month'] = forms.ChoiceField(
+            choices=MONTH_CHOICES, label='対象月'
+        )
+        bootstrap_fields(self)
+        self.fields['tax_rate'].widget.attrs.update({'min': '0', 'max': '30'})
 
 
 class CompanySettingsForm(forms.ModelForm):

@@ -1,17 +1,18 @@
 import json
 from decimal import Decimal
-from datetime import datetime
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
+from datetime import date, datetime
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from django.shortcuts import redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.template.loader import render_to_string
 from django.contrib import messages
 
-from .models import Company, CompanySettings, Client, Partner, Worker, WorkRecord
+from .models import Company, CompanySettings, Client, Partner, Worker, WorkRecord, Invoice
 from .forms import (ClientForm, PartnerForm, WorkerForm,
-                    WorkRecordForm, WorkRecordUpdateForm, CompanySettingsForm)
+                    WorkRecordForm, WorkRecordUpdateForm, CompanySettingsForm, InvoiceForm)
 
 
 class CompanyMixin:
@@ -541,6 +542,145 @@ class SalesRepReportView(LoginRequiredMixin, TemplateView):
         return ctx
 
 
+# ── Invoices ───────────────────────────────────────────────────────────────────
+
+def _next_invoice_number(company, year, month):
+    prefix = f'{year}{month:02d}'
+    count = Invoice.objects.filter(
+        company=company, invoice_number__startswith=prefix
+    ).count()
+    return f'{prefix}-{count + 1:03d}'
+
+
+class InvoiceListView(LoginRequiredMixin, CompanyMixin, ListView):
+    model = Invoice
+    template_name = 'core/invoice_list.html'
+    context_object_name = 'invoices'
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('client')
+        if self.request.GET.get('status'):
+            qs = qs.filter(status=self.request.GET['status'])
+        if self.request.GET.get('client'):
+            qs = qs.filter(client_id=self.request.GET['client'])
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update({
+            'clients': Client.objects.filter(company=self.get_company()),
+            'status_choices': Invoice.STATUS_CHOICES,
+            'filters': {
+                'status': self.request.GET.get('status', ''),
+                'client': self.request.GET.get('client', ''),
+            },
+        })
+        return ctx
+
+
+class InvoiceDetailView(LoginRequiredMixin, CompanyMixin, DetailView):
+    model = Invoice
+    template_name = 'core/invoice_detail.html'
+    context_object_name = 'invoice'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        invoice = self.get_object()
+        ctx['records'] = invoice.get_work_records()
+        ctx['settings'] = CompanySettings.objects.filter(company=self.get_company()).first()
+        return ctx
+
+
+class InvoiceCreateView(LoginRequiredMixin, CompanyMixin, CreateView):
+    model = Invoice
+    template_name = 'core/invoice_form.html'
+    success_url = reverse_lazy('invoice_list')
+
+    def get_form(self, form_class=None):
+        kwargs = self.get_form_kwargs()
+        kwargs['company'] = self.get_company()
+        form = InvoiceForm(**kwargs)
+        if self.request.method == 'GET':
+            now = datetime.now()
+            form.initial.setdefault('issue_date', date.today().isoformat())
+            form.initial.setdefault('target_year', now.year)
+            form.initial.setdefault('target_month', now.month)
+            form.initial.setdefault(
+                'invoice_number',
+                _next_invoice_number(self.get_company(), now.year, now.month)
+            )
+        return form
+
+    def form_valid(self, form):
+        form.instance.company = self.get_company()
+        messages.success(self.request, '請求書を作成しました。')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = '請求書 新規作成'
+        return ctx
+
+
+class InvoiceUpdateView(LoginRequiredMixin, CompanyMixin, UpdateView):
+    model = Invoice
+    template_name = 'core/invoice_form.html'
+    success_url = reverse_lazy('invoice_list')
+
+    def get_form(self, form_class=None):
+        kwargs = self.get_form_kwargs()
+        kwargs['company'] = self.get_company()
+        return InvoiceForm(**kwargs)
+
+    def form_valid(self, form):
+        messages.success(self.request, '請求書を更新しました。')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = '請求書 編集'
+        return ctx
+
+
+class InvoiceDeleteView(LoginRequiredMixin, CompanyMixin, DeleteView):
+    model = Invoice
+    template_name = 'core/confirm_delete.html'
+    success_url = reverse_lazy('invoice_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, '請求書を削除しました。')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update({'cancel_url': reverse_lazy('invoice_list'), 'object_name': str(self.get_object())})
+        return ctx
+
+
+@login_required
+def invoice_pdf(request, pk):
+    invoice = get_object_or_404(Invoice, pk=pk, company=request.user.profile.company)
+    settings_obj = CompanySettings.objects.filter(company=invoice.company).first()
+    records = list(invoice.get_work_records())
+
+    html = render_to_string('core/invoice_pdf.html', {
+        'invoice': invoice,
+        'settings': settings_obj,
+        'records': records,
+    }, request=request)
+
+    try:
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+        resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+        resp['Content-Disposition'] = (
+            f'attachment; filename="invoice_{invoice.invoice_number}.pdf"'
+        )
+        return resp
+    except Exception:
+        return HttpResponse(html, content_type='text/html')
+
+
 # ── AJAX ───────────────────────────────────────────────────────────────────────
 
 @login_required
@@ -555,4 +695,32 @@ def api_worker_info(request):
     wid = request.GET.get('worker_id')
     worker = get_object_or_404(Worker, id=wid, company=request.user.profile.company)
     return JsonResponse({'daily_rate': float(worker.daily_rate), 'partner_name': worker.partner.name})
+
+
+@login_required
+def api_invoice_preview(request):
+    company = request.user.profile.company
+    client_id = request.GET.get('client')
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    if not (client_id and year and month):
+        return JsonResponse({'records': [], 'subtotal': 0})
+    try:
+        client = Client.objects.get(pk=client_id, company=company)
+    except Client.DoesNotExist:
+        return JsonResponse({'records': [], 'subtotal': 0})
+    records = WorkRecord.objects.filter(
+        company=company, client=client,
+        target_year=int(year), target_month=int(month)
+    ).select_related('worker')
+    items = [
+        {
+            'worker': r.worker.name,
+            'days': float(r.days_worked),
+            'amount': float(r.late_invoice_amount),
+        }
+        for r in records
+    ]
+    subtotal = float(sum(r.late_invoice_amount for r in records))
+    return JsonResponse({'records': items, 'subtotal': subtotal})
 
