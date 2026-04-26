@@ -73,7 +73,7 @@ class Client(models.Model):
         max_digits=10, decimal_places=0, verbose_name='受け単価（日当）',
         validators=[MinValueValidator(Decimal('0'))]
     )
-    sales_rep = models.CharField(max_length=100, verbose_name='担当営業', blank=True)
+    sales_rep = models.CharField(max_length=100, verbose_name='担当営業', blank=True, default='')
     payment_terms = models.CharField(max_length=100, verbose_name='支払いサイト', blank=True)
     invoice_method = models.CharField(
         max_length=10, choices=INVOICE_METHOD_CHOICES, default='email',
