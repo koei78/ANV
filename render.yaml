@@ -1,9 +1,3 @@
-databases:
-  - name: anv-db
-    databaseName: anv_billing
-    user: anv_user
-    plan: free
-
 services:
   - type: web
     name: anv-billing
@@ -16,7 +10,3 @@ services:
         generateValue: true
       - key: DEBUG
         value: "False"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: anv-db
-          property: connectionString
