@@ -32,6 +32,12 @@ urlpatterns = [
     path('invoices/<uuid:pk>/delete/', views.InvoiceDeleteView.as_view(), name='invoice_delete'),
     path('invoices/<uuid:pk>/pdf/', views.invoice_pdf, name='invoice_pdf'),
 
+    # Master: SalesReps
+    path('master/sales-reps/', views.SalesRepListView.as_view(), name='sales_rep_master_list'),
+    path('master/sales-reps/new/', views.SalesRepCreateView.as_view(), name='sales_rep_create'),
+    path('master/sales-reps/<uuid:pk>/edit/', views.SalesRepUpdateView.as_view(), name='sales_rep_update'),
+    path('master/sales-reps/<uuid:pk>/delete/', views.SalesRepDeleteView.as_view(), name='sales_rep_delete'),
+
     # Master: Clients
     path('master/clients/', views.ClientListView.as_view(), name='client_list'),
     path('master/clients/new/', views.ClientCreateView.as_view(), name='client_create'),

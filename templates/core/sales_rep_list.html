@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}担当営業一覧 | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">担当営業</h4>
+  {% if user.profile.is_admin %}
+  <a href="{% url 'sales_rep_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>新規登録
+  </a>
+  {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>氏名</th>
+            <th class="text-end">担当クライアント数</th>
+            {% if user.profile.is_admin %}<th>操作</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for rep in sales_reps %}
+          <tr>
+            <td class="fw-bold">{{ rep.name }}</td>
+            <td class="text-end">{{ rep.clients.count }} 社</td>
+            {% if user.profile.is_admin %}
+            <td class="text-nowrap">
+              <a href="{% url 'sales_rep_update' rep.pk %}" class="btn btn-xs btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'sales_rep_delete' rep.pk %}" class="btn btn-xs btn-outline-danger ms-1">
+                <i class="bi bi-trash"></i>
+              </a>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted py-4">担当営業が登録されていません</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

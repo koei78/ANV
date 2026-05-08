@@ -10,8 +10,8 @@ from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.contrib import messages
 
-from .models import Company, CompanySettings, Client, Partner, Worker, WorkRecord, Invoice
-from .forms import (ClientForm, PartnerForm, WorkerForm,
+from .models import Company, CompanySettings, Client, Partner, Worker, WorkRecord, Invoice, SalesRep
+from .forms import (ClientForm, PartnerForm, WorkerForm, SalesRepForm,
                     WorkRecordForm, WorkRecordUpdateForm, CompanySettingsForm, InvoiceForm)
 
 
@@ -290,6 +290,11 @@ class ClientCreateView(LoginRequiredMixin, AdminRequiredMixin, CompanyMixin, Cre
     template_name = 'core/master_form.html'
     success_url = reverse_lazy('client_list')
 
+    def get_form(self, form_class=None):
+        kwargs = self.get_form_kwargs()
+        kwargs['company'] = self.get_company()
+        return ClientForm(**kwargs)
+
     def form_valid(self, form):
         messages.success(self.request, 'クライアント先を登録しました。')
         return super().form_valid(form)
@@ -305,6 +310,11 @@ class ClientUpdateView(LoginRequiredMixin, AdminRequiredMixin, CompanyMixin, Upd
     form_class = ClientForm
     template_name = 'core/master_form.html'
     success_url = reverse_lazy('client_list')
+
+    def get_form(self, form_class=None):
+        kwargs = self.get_form_kwargs()
+        kwargs['company'] = self.get_company()
+        return ClientForm(**kwargs)
 
     def form_valid(self, form):
         messages.success(self.request, 'クライアント先を更新しました。')
@@ -328,6 +338,57 @@ class ClientDeleteView(LoginRequiredMixin, AdminRequiredMixin, CompanyMixin, Del
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx.update({'cancel_url': reverse_lazy('client_list'), 'object_name': str(self.get_object())})
+        return ctx
+
+
+# ── Master: SalesRep ───────────────────────────────────────────────────────────
+
+class SalesRepListView(LoginRequiredMixin, CompanyMixin, ListView):
+    model = SalesRep
+    template_name = 'core/sales_rep_list.html'
+    context_object_name = 'sales_reps'
+
+
+class SalesRepCreateView(LoginRequiredMixin, AdminRequiredMixin, CompanyMixin, CreateView):
+    model = SalesRep
+    form_class = SalesRepForm
+    template_name = 'core/master_form.html'
+    success_url = reverse_lazy('sales_rep_master_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, '担当営業を登録しました。')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update({'title': '担当営業 登録', 'cancel_url': reverse_lazy('sales_rep_master_list')})
+        return ctx
+
+
+class SalesRepUpdateView(LoginRequiredMixin, AdminRequiredMixin, CompanyMixin, UpdateView):
+    model = SalesRep
+    form_class = SalesRepForm
+    template_name = 'core/master_form.html'
+    success_url = reverse_lazy('sales_rep_master_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, '担当営業を更新しました。')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update({'title': '担当営業 編集', 'cancel_url': reverse_lazy('sales_rep_master_list')})
+        return ctx
+
+
+class SalesRepDeleteView(LoginRequiredMixin, AdminRequiredMixin, CompanyMixin, DeleteView):
+    model = SalesRep
+    template_name = 'core/confirm_delete.html'
+    success_url = reverse_lazy('sales_rep_master_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update({'cancel_url': reverse_lazy('sales_rep_master_list'), 'object_name': str(self.get_object())})
         return ctx
 
 
@@ -494,36 +555,40 @@ class SalesRepReportView(LoginRequiredMixin, TemplateView):
             y, m = now.year, now.month
 
         qs = WorkRecord.objects.filter(company=company).select_related(
-            'client', 'worker', 'worker__partner'
+            'client', 'client__sales_rep', 'worker', 'worker__partner'
         )
         if not all_period:
             qs = qs.filter(target_year=y, target_month=m)
 
         rep_map = {}
         for rec in qs:
-            rep_name = rec.client.sales_rep or '（未設定）'
-            if rep_name not in rep_map:
-                rep_map[rep_name] = {}
+            rep_obj = rec.client.sales_rep
+            rep_key = str(rep_obj.pk) if rep_obj else '__unset__'
+            if rep_key not in rep_map:
+                rep_map[rep_key] = {
+                    'name': rep_obj.name if rep_obj else '（未設定）',
+                    'clients': {},
+                }
             cid = str(rec.client_id)
-            if cid not in rep_map[rep_name]:
-                rep_map[rep_name][cid] = {
+            if cid not in rep_map[rep_key]['clients']:
+                rep_map[rep_key]['clients'][cid] = {
                     'client': rec.client,
                     'records': [],
                     'invoice': Decimal('0'),
                     'partner': Decimal('0'),
                     'gross': Decimal('0'),
                 }
-            entry = rep_map[rep_name][cid]
+            entry = rep_map[rep_key]['clients'][cid]
             entry['records'].append(rec)
             entry['invoice'] += rec.late_invoice_amount
             entry['partner'] += rec.partner_payment
             entry['gross'] += rec.gross_profit_late
 
         rep_list = []
-        for rep_name in sorted(rep_map.keys()):
-            clients = list(rep_map[rep_name].values())
+        for rep_key in sorted(rep_map.keys(), key=lambda k: rep_map[k]['name']):
+            clients = list(rep_map[rep_key]['clients'].values())
             rep_list.append({
-                'name': rep_name,
+                'name': rep_map[rep_key]['name'],
                 'clients': clients,
                 'invoice': sum(c['invoice'] for c in clients),
                 'partner': sum(c['partner'] for c in clients),

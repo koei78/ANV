@@ -60,6 +60,21 @@ class UserProfile(models.Model):
         return self.role == 'admin'
 
 
+class SalesRep(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='sales_reps')
+    name = models.CharField(max_length=100, verbose_name='氏名')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = '担当営業'
+        verbose_name_plural = '担当営業'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Client(models.Model):
     INVOICE_METHOD_CHOICES = [('email', 'メール'), ('mail', '郵送')]
 
@@ -73,7 +88,10 @@ class Client(models.Model):
         max_digits=10, decimal_places=0, verbose_name='受け単価（日当）',
         validators=[MinValueValidator(Decimal('0'))]
     )
-    sales_rep = models.CharField(max_length=100, verbose_name='担当営業', blank=True, default='')
+    sales_rep = models.ForeignKey(
+        SalesRep, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name='担当営業', related_name='clients'
+    )
     payment_terms = models.CharField(max_length=100, verbose_name='支払いサイト', blank=True)
     invoice_method = models.CharField(
         max_length=10, choices=INVOICE_METHOD_CHOICES, default='email',

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Client, Partner, Worker, WorkRecord, CompanySettings, Invoice
+from .models import Client, Partner, Worker, WorkRecord, CompanySettings, Invoice, SalesRep
 
 
 def bootstrap_fields(form):
@@ -16,6 +16,16 @@ def bootstrap_fields(form):
             w.attrs.setdefault('class', 'form-control')
 
 
+class SalesRepForm(forms.ModelForm):
+    class Meta:
+        model = SalesRep
+        fields = ['name']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        bootstrap_fields(self)
+
+
 class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
@@ -23,7 +33,10 @@ class ClientForm(forms.ModelForm):
                   'sales_rep', 'payment_terms', 'invoice_method']
 
     def __init__(self, *args, **kwargs):
+        company = kwargs.pop('company', None)
         super().__init__(*args, **kwargs)
+        if company:
+            self.fields['sales_rep'].queryset = SalesRep.objects.filter(company=company)
         bootstrap_fields(self)
         self.fields['daily_rate'].widget.attrs['min'] = '0'
 
