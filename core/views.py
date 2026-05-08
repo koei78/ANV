@@ -50,7 +50,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         current_records = list(
             WorkRecord.objects.filter(
                 company=company, target_year=now.year, target_month=now.month
-            ).select_related('client', 'worker')
+            ).select_related('client', 'client__sales_rep', 'worker')
         )
 
         total_early = sum(r.early_invoice_amount for r in current_records)
@@ -82,6 +82,25 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             client_profits[key] = client_profits.get(key, 0) + float(r.gross_profit_early)
         client_ranking = sorted(client_profits.items(), key=lambda x: x[1], reverse=True)[:5]
 
+        # 担当営業別集計
+        rep_map = {}
+        for r in current_records:
+            rep = r.client.sales_rep
+            key = str(rep.pk) if rep else '__unset__'
+            if key not in rep_map:
+                rep_map[key] = {
+                    'name': rep.name if rep else '（未設定）',
+                    'invoice': Decimal('0'),
+                    'gross': Decimal('0'),
+                    'count': 0,
+                }
+            rep_map[key]['invoice'] += r.late_invoice_amount
+            rep_map[key]['gross'] += r.gross_profit_late
+            rep_map[key]['count'] += 1
+        sales_rep_summary = sorted(
+            rep_map.values(), key=lambda x: x['invoice'], reverse=True
+        )
+
         status_items = [
             (status, label, status_counts.get(status, 0))
             for status, label in WorkRecord.STATUS_CHOICES
@@ -97,6 +116,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             'chart_labels': json.dumps(chart_labels),
             'chart_data': json.dumps(chart_data),
             'client_ranking': client_ranking,
+            'sales_rep_summary': sales_rep_summary,
             'alert_pending': status_counts.get('pending', 0),
             'alert_waiting': status_counts.get('waiting_transfer', 0),
         })

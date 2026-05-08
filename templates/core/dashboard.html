@@ -98,6 +98,58 @@
   </div>
 </div>
 
+<!-- Sales Rep Summary -->
+{% if sales_rep_summary %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0">今月 担当営業別集計</h6>
+        <a href="{% url 'sales_rep_report' %}" class="btn btn-xs btn-outline-primary">詳細レポート</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th>担当営業</th>
+                <th class="text-end">売上</th>
+                <th class="text-end">粗利</th>
+                <th class="text-end">粗利率</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rep in sales_rep_summary %}
+              <tr>
+                <td class="fw-bold">{{ rep.name }}</td>
+                <td class="text-end">¥{{ rep.invoice|floatformat:0 }}</td>
+                <td class="text-end fw-bold {% if rep.gross >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  ¥{{ rep.gross|floatformat:0 }}
+                </td>
+                <td class="text-end text-muted">
+                  {% if rep.invoice %}{% widthratio rep.gross rep.invoice 100 %}%{% else %}―{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold mb-0">今月 担当営業別 売上・粗利</h6>
+      </div>
+      <div class="card-body">
+        <canvas id="repChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Client ranking -->
 {% if client_ranking %}
 <div class="card border-0 shadow-sm mb-4">
@@ -167,10 +219,10 @@
 
 {% block extra_js %}
 <script>
+// 月別粗利推移
 const labels = {{ chart_labels|safe }};
 const data = {{ chart_data|safe }};
-const ctx = document.getElementById('grossChart');
-new Chart(ctx, {
+new Chart(document.getElementById('grossChart'), {
   type: 'bar',
   data: {
     labels,
@@ -186,12 +238,44 @@ new Chart(ctx, {
   options: {
     responsive: true,
     plugins: { legend: { display: false } },
-    scales: {
-      y: {
-        ticks: { callback: v => '¥' + v.toLocaleString() }
-      }
-    }
+    scales: { y: { ticks: { callback: v => '¥' + v.toLocaleString() } } }
   }
 });
+
+// 担当営業別グラフ
+{% if sales_rep_summary %}
+const repLabels = [{% for rep in sales_rep_summary %}"{{ rep.name }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const repInvoice = [{% for rep in sales_rep_summary %}{{ rep.invoice|floatformat:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const repGross = [{% for rep in sales_rep_summary %}{{ rep.gross|floatformat:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+new Chart(document.getElementById('repChart'), {
+  type: 'bar',
+  data: {
+    labels: repLabels,
+    datasets: [
+      {
+        label: '売上',
+        data: repInvoice,
+        backgroundColor: 'rgba(13,110,253,0.6)',
+        borderColor: '#0d6efd',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        label: '粗利',
+        data: repGross,
+        backgroundColor: repGross.map(v => v >= 0 ? 'rgba(25,135,84,0.7)' : 'rgba(220,53,69,0.7)'),
+        borderColor: repGross.map(v => v >= 0 ? '#198754' : '#dc3545'),
+        borderWidth: 1,
+        borderRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { ticks: { callback: v => '¥' + v.toLocaleString() } } }
+  }
+});
+{% endif %}
 </script>
 {% endblock %}
