@@ -42,7 +42,12 @@ class CompanySettings(models.Model):
 
 
 class UserProfile(models.Model):
-    ROLE_CHOICES = [('admin', '管理者'), ('staff', 'スタッフ')]
+    ROLE_CHOICES = [
+        ('admin',   '管理者（全機能）'),
+        ('staff',   'スタッフ（稼働・請求）'),
+        ('invoice', '請求書作成のみ'),
+        ('viewer',  '閲覧のみ'),
+    ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='users')

@@ -56,8 +56,15 @@ urlpatterns = [
     path('master/workers/<uuid:pk>/edit/', views.WorkerUpdateView.as_view(), name='worker_update'),
     path('master/workers/<uuid:pk>/delete/', views.WorkerDeleteView.as_view(), name='worker_delete'),
 
-    # Company Settings
+    # Company Settings & CSV Export
     path('settings/', views.CompanySettingsView.as_view(), name='company_settings'),
+    path('settings/export-bank-csv/', views.export_bank_info_csv, name='export_bank_info_csv'),
+
+    # User Management
+    path('settings/users/', views.UserListView.as_view(), name='user_list'),
+    path('settings/users/new/', views.UserCreateView.as_view(), name='user_create'),
+    path('settings/users/<int:pk>/edit/', views.UserUpdateView.as_view(), name='user_update'),
+    path('settings/users/<int:pk>/delete/', views.UserDeleteView.as_view(), name='user_delete'),
 
     # AJAX
     path('api/client-info/', views.api_client_info, name='api_client_info'),

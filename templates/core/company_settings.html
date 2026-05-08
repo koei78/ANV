@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}会社設定 | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-gear me-2"></i>会社設定</h4>
+  <div class="d-flex gap-2">
+    <a href="{% url 'export_bank_info_csv' %}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-download me-1"></i>口座情報 CSV
+    </a>
+    <a href="{% url 'user_list' %}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-people me-1"></i>ユーザー管理
+    </a>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show mb-3" role="alert">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-dark text-white fw-bold py-2">
+        <i class="bi bi-building me-1"></i>会社情報
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          {% for field in form %}
+          <div class="mb-3">
+            <label for="{{ field.id_for_label }}" class="form-label fw-bold">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+          </div>
+          {% endfor %}
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-lg me-1"></i>保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- CSV説明 -->
+    <div class="card border-0 shadow-sm border-start border-4 border-success">
+      <div class="card-body">
+        <h6 class="fw-bold mb-2"><i class="bi bi-file-earmark-spreadsheet me-1 text-success"></i>口座情報 CSV エクスポート</h6>
+        <p class="text-muted small mb-2">上記の銀行口座情報をCSVファイルとしてダウンロードできます。会計ソフトへの連携や、クライアントへの振込先通知にご利用ください。</p>
+        <p class="text-muted small mb-0">出力項目：会社名・銀行名・支店名・口座種別・口座番号・口座名義</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

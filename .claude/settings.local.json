@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(start \"C:\\\\Users\\\\koei1\\\\OneDrive\\\\Desktop\\\\請求書\\\\manual.html\")"
+    ]
+  }
+}

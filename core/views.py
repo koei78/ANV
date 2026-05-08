@@ -1,18 +1,25 @@
+import csv
 import json
 from decimal import Decimal
 from datetime import date, datetime
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView, DetailView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView, DetailView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.urls import reverse_lazy
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.contrib import messages
 
-from .models import Company, CompanySettings, Client, Partner, Worker, WorkRecord, Invoice, SalesRep
+from .models import Company, CompanySettings, Client, Partner, Worker, WorkRecord, Invoice, SalesRep, UserProfile
 from .forms import (ClientForm, PartnerForm, WorkerForm, SalesRepForm,
-                    WorkRecordForm, WorkRecordUpdateForm, CompanySettingsForm, InvoiceForm)
+                    WorkRecordForm, WorkRecordUpdateForm, CompanySettingsForm, InvoiceForm,
+                    UserCreateForm, UserUpdateForm)
+
+# 権限グループ
+ROLES_STAFF_UP = {'admin', 'staff'}
+ROLES_INVOICE_UP = {'admin', 'staff', 'invoice'}
 
 
 class CompanyMixin:
@@ -33,6 +40,20 @@ class AdminRequiredMixin:
             return redirect('login')
         if not request.user.profile.is_admin:
             messages.error(request, '管理者権限が必要です。')
+            return redirect('dashboard')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class RoleRequiredMixin:
+    """allowed_roles に含まれるロールのみアクセス可"""
+    allowed_roles: set = set()
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        role = getattr(getattr(request.user, 'profile', None), 'role', '')
+        if self.allowed_roles and role not in self.allowed_roles:
+            messages.error(request, 'この操作を行う権限がありません。')
             return redirect('dashboard')
         return super().dispatch(request, *args, **kwargs)
 
@@ -169,7 +190,8 @@ class WorkRecordListView(LoginRequiredMixin, CompanyMixin, ListView):
         return ctx
 
 
-class WorkRecordCreateView(LoginRequiredMixin, CompanyMixin, CreateView):
+class WorkRecordCreateView(LoginRequiredMixin, RoleRequiredMixin, CompanyMixin, CreateView):
+    allowed_roles = ROLES_STAFF_UP
     model = WorkRecord
     template_name = 'core/work_form.html'
     success_url = reverse_lazy('work_list')
@@ -202,7 +224,8 @@ class WorkRecordCreateView(LoginRequiredMixin, CompanyMixin, CreateView):
         return {'clients_json': json.dumps(clients), 'workers_json': json.dumps(workers)}
 
 
-class WorkRecordUpdateView(LoginRequiredMixin, CompanyMixin, UpdateView):
+class WorkRecordUpdateView(LoginRequiredMixin, RoleRequiredMixin, CompanyMixin, UpdateView):
+    allowed_roles = ROLES_STAFF_UP
     model = WorkRecord
     template_name = 'core/work_form.html'
     success_url = reverse_lazy('work_list')
@@ -231,7 +254,8 @@ class WorkRecordUpdateView(LoginRequiredMixin, CompanyMixin, UpdateView):
         return ctx
 
 
-class WorkRecordDeleteView(LoginRequiredMixin, CompanyMixin, DeleteView):
+class WorkRecordDeleteView(LoginRequiredMixin, RoleRequiredMixin, CompanyMixin, DeleteView):
+    allowed_roles = ROLES_STAFF_UP
     model = WorkRecord
     template_name = 'core/confirm_delete.html'
     success_url = reverse_lazy('work_list')
@@ -249,6 +273,9 @@ class WorkRecordDeleteView(LoginRequiredMixin, CompanyMixin, DeleteView):
 
 @login_required
 def update_work_status(request, pk):
+    if getattr(getattr(request.user, 'profile', None), 'role', '') not in ROLES_STAFF_UP:
+        messages.error(request, 'この操作を行う権限がありません。')
+        return redirect('work_list')
     record = get_object_or_404(WorkRecord, pk=pk, company=request.user.profile.company)
     new_status = request.POST.get('status')
     if new_status and new_status in dict(WorkRecord.STATUS_CHOICES):
@@ -539,8 +566,8 @@ class WorkerDeleteView(LoginRequiredMixin, AdminRequiredMixin, CompanyMixin, Del
 class CompanySettingsView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
     model = CompanySettings
     form_class = CompanySettingsForm
-    template_name = 'core/master_form.html'
-    success_url = reverse_lazy('dashboard')
+    template_name = 'core/company_settings.html'
+    success_url = reverse_lazy('company_settings')
 
     def get_object(self, queryset=None):
         company = self.request.user.profile.company
@@ -555,6 +582,120 @@ class CompanySettingsView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
         ctx = super().get_context_data(**kwargs)
         ctx.update({'title': '会社設定', 'cancel_url': reverse_lazy('dashboard')})
         return ctx
+
+
+# ── User Management ────────────────────────────────────────────────────────────
+
+class UserListView(LoginRequiredMixin, AdminRequiredMixin, TemplateView):
+    template_name = 'core/user_list.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['profiles'] = UserProfile.objects.filter(
+            company=self.request.user.profile.company
+        ).select_related('user').order_by('user__username')
+        return ctx
+
+
+class UserCreateView(LoginRequiredMixin, AdminRequiredMixin, View):
+    def get(self, request):
+        return render(request, 'core/user_form.html', {
+            'form': UserCreateForm(), 'title': 'ユーザー追加',
+        })
+
+    def post(self, request):
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            company = request.user.profile.company
+            user = User.objects.create_user(
+                username=form.cleaned_data['username'],
+                password=form.cleaned_data['password'],
+            )
+            UserProfile.objects.create(
+                user=user, company=company, role=form.cleaned_data['role']
+            )
+            messages.success(request, f'ユーザー「{user.username}」を追加しました。')
+            return redirect('user_list')
+        return render(request, 'core/user_form.html', {'form': form, 'title': 'ユーザー追加'})
+
+
+class UserUpdateView(LoginRequiredMixin, AdminRequiredMixin, View):
+    def _get_profile(self, request, pk):
+        return get_object_or_404(
+            UserProfile, pk=pk, company=request.user.profile.company
+        )
+
+    def get(self, request, pk):
+        profile = self._get_profile(request, pk)
+        form = UserUpdateForm(initial={'role': profile.role})
+        return render(request, 'core/user_form.html', {
+            'form': form, 'title': f'ユーザー編集（{profile.user.username}）',
+            'editing': True, 'profile': profile,
+        })
+
+    def post(self, request, pk):
+        profile = self._get_profile(request, pk)
+        form = UserUpdateForm(request.POST)
+        if form.is_valid():
+            profile.role = form.cleaned_data['role']
+            profile.save()
+            if form.cleaned_data.get('password'):
+                profile.user.set_password(form.cleaned_data['password'])
+                profile.user.save()
+            messages.success(request, '更新しました。')
+            return redirect('user_list')
+        return render(request, 'core/user_form.html', {
+            'form': form, 'title': f'ユーザー編集（{profile.user.username}）',
+            'editing': True, 'profile': profile,
+        })
+
+
+class UserDeleteView(LoginRequiredMixin, AdminRequiredMixin, View):
+    def post(self, request, pk):
+        profile = get_object_or_404(
+            UserProfile, pk=pk, company=request.user.profile.company
+        )
+        if profile.user == request.user:
+            messages.error(request, '自分自身は削除できません。')
+        else:
+            username = profile.user.username
+            profile.user.delete()
+            messages.success(request, f'ユーザー「{username}」を削除しました。')
+        return redirect('user_list')
+
+
+# ── CSV Export ──────────────────────────────────────────────────────────────────
+
+@login_required
+def export_bank_info_csv(request):
+    if not request.user.profile.is_admin:
+        messages.error(request, '管理者権限が必要です。')
+        return redirect('dashboard')
+
+    company = request.user.profile.company
+    s = CompanySettings.objects.filter(company=company).first()
+
+    def sanitize(val):
+        val = str(val) if val else ''
+        if val and val[0] in ('=', '+', '-', '@', '\t', '\r', '\n'):
+            val = "'" + val
+        return val
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = 'attachment; filename="bank_info.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['会社名', '銀行名', '支店名', '口座種別', '口座番号', '口座名義'])
+    if s:
+        account_type = dict(CompanySettings.ACCOUNT_TYPE_CHOICES).get(s.account_type, s.account_type)
+        writer.writerow([
+            sanitize(s.company_name or company.name),
+            sanitize(s.bank_name),
+            sanitize(s.branch_name),
+            sanitize(account_type),
+            sanitize(s.account_number),
+            sanitize(s.account_holder),
+        ])
+    return response
 
 
 # ── Sales Rep Report ───────────────────────────────────────────────────────────
@@ -676,7 +817,8 @@ class InvoiceDetailView(LoginRequiredMixin, CompanyMixin, DetailView):
         return ctx
 
 
-class InvoiceCreateView(LoginRequiredMixin, CompanyMixin, CreateView):
+class InvoiceCreateView(LoginRequiredMixin, RoleRequiredMixin, CompanyMixin, CreateView):
+    allowed_roles = ROLES_INVOICE_UP
     model = Invoice
     template_name = 'core/invoice_form.html'
     success_url = reverse_lazy('invoice_list')
@@ -707,7 +849,8 @@ class InvoiceCreateView(LoginRequiredMixin, CompanyMixin, CreateView):
         return ctx
 
 
-class InvoiceUpdateView(LoginRequiredMixin, CompanyMixin, UpdateView):
+class InvoiceUpdateView(LoginRequiredMixin, RoleRequiredMixin, CompanyMixin, UpdateView):
+    allowed_roles = ROLES_INVOICE_UP
     model = Invoice
     template_name = 'core/invoice_form.html'
     success_url = reverse_lazy('invoice_list')
@@ -727,7 +870,8 @@ class InvoiceUpdateView(LoginRequiredMixin, CompanyMixin, UpdateView):
         return ctx
 
 
-class InvoiceDeleteView(LoginRequiredMixin, CompanyMixin, DeleteView):
+class InvoiceDeleteView(LoginRequiredMixin, RoleRequiredMixin, CompanyMixin, DeleteView):
+    allowed_roles = ROLES_INVOICE_UP
     model = Invoice
     template_name = 'core/confirm_delete.html'
     success_url = reverse_lazy('invoice_list')

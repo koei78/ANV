@@ -151,6 +151,55 @@ body {
   }
 }
 
+/* ── Mobile sticky submit bar ── */
+.sticky-submit {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid #dee2e6;
+  padding: 12px 16px;
+  margin: 16px -16px -16px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Mobile card-body padding ── */
+@media (max-width: 575px) {
+  .card-body { padding: 1rem; }
+  h4.fw-bold { font-size: 1.1rem; }
+
+  /* モバイルテーブルはカード形式に */
+  .table-card-mobile thead { display: none; }
+  .table-card-mobile tr {
+    display: block;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    margin-bottom: .75rem;
+    padding: .5rem;
+  }
+  .table-card-mobile td {
+    display: flex;
+    justify-content: space-between;
+    border: none;
+    padding: .25rem .5rem;
+    font-size: 13px;
+  }
+  .table-card-mobile td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #6c757d;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+}
+
+/* ── Status color rows in work_list ── */
+tr.status-early_sent  { background: rgba(13,202,240,.06); }
+tr.status-late_sent   { background: rgba(13,110,253,.06); }
+tr.status-waiting_transfer { background: rgba(255,193,7,.08); }
+tr.status-transferred { background: rgba(25,135,84,.06); }
+
 /* ── Alert badges ── */
 .alert.py-2 {
   line-height: 1.3;

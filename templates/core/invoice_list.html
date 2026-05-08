@@ -79,9 +79,15 @@
               <a href="{% url 'invoice_update' inv.pk %}" class="btn btn-xs btn-outline-secondary ms-1" title="編集">
                 <i class="bi bi-pencil"></i>
               </a>
-              <a href="{% url 'invoice_delete' inv.pk %}" class="btn btn-xs btn-outline-danger ms-1" title="削除">
+              {% if user.profile.role != 'viewer' %}
+              <button type="button" class="btn btn-xs btn-outline-danger ms-1"
+                      data-bs-toggle="modal" data-bs-target="#deleteModal"
+                      data-url="{% url 'invoice_delete' inv.pk %}"
+                      data-label="{{ inv.invoice_number }}"
+                      title="削除">
                 <i class="bi bi-trash"></i>
-              </a>
+              </button>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
@@ -94,4 +100,37 @@
     </div>
   </div>
 </div>
+
+<!-- 削除確認モーダル -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h6 class="modal-title"><i class="bi bi-exclamation-triangle me-1"></i>削除確認</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1">以下の請求書を削除しますか？</p>
+        <p class="fw-bold" id="deleteLabel"></p>
+        <p class="text-danger small mb-0">この操作は取り消せません。</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">キャンセル</button>
+        <form method="post" id="deleteForm">{% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm">削除する</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('deleteModal').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  document.getElementById('deleteLabel').textContent = btn.dataset.label;
+  document.getElementById('deleteForm').action = btn.dataset.url;
+});
+</script>
 {% endblock %}

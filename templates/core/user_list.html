@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}ユーザー管理 | ANV{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-people me-2"></i>ユーザー管理</h4>
+  <div class="d-flex gap-2">
+    <a href="{% url 'user_create' %}" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>ユーザー追加
+    </a>
+    <a href="{% url 'company_settings' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>会社設定に戻る
+    </a>
+  </div>
+</div>
+
+<!-- 権限説明 -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 border-top border-3 border-danger">
+      <div class="card-body py-2 px-3">
+        <div class="fw-bold small">管理者</div>
+        <div class="text-muted" style="font-size:11px">全機能・設定・ユーザー管理</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 border-top border-3 border-primary">
+      <div class="card-body py-2 px-3">
+        <div class="fw-bold small">スタッフ</div>
+        <div class="text-muted" style="font-size:11px">稼働登録・請求書・レポート閲覧</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 border-top border-3 border-info">
+      <div class="card-body py-2 px-3">
+        <div class="fw-bold small">請求書作成のみ</div>
+        <div class="text-muted" style="font-size:11px">請求書の作成・編集のみ</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100 border-top border-3 border-secondary">
+      <div class="card-body py-2 px-3">
+        <div class="fw-bold small">閲覧のみ</div>
+        <div class="text-muted" style="font-size:11px">すべての画面を閲覧のみ</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>ユーザー名</th>
+          <th>権限</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in profiles %}
+        <tr>
+          <td class="fw-bold">
+            <i class="bi bi-person-circle me-1 text-muted"></i>
+            {{ p.user.username }}
+            {% if p.user == request.user %}<span class="badge bg-secondary ms-1">自分</span>{% endif %}
+          </td>
+          <td>
+            {% if p.role == 'admin' %}
+            <span class="badge bg-danger">{{ p.get_role_display }}</span>
+            {% elif p.role == 'staff' %}
+            <span class="badge bg-primary">{{ p.get_role_display }}</span>
+            {% elif p.role == 'invoice' %}
+            <span class="badge bg-info text-dark">{{ p.get_role_display }}</span>
+            {% else %}
+            <span class="badge bg-secondary">{{ p.get_role_display }}</span>
+            {% endif %}
+          </td>
+          <td class="text-nowrap">
+            <a href="{% url 'user_update' p.pk %}" class="btn btn-xs btn-outline-secondary">
+              <i class="bi bi-pencil"></i>
+            </a>
+            {% if p.user != request.user %}
+            <form method="post" action="{% url 'user_delete' p.pk %}" class="d-inline"
+                  onsubmit="return confirm('「{{ p.user.username }}」を削除しますか？')">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-xs btn-outline-danger ms-1">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-center text-muted py-4">ユーザーがいません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

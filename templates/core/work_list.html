@@ -77,7 +77,8 @@
         </thead>
         <tbody>
           {% for r in records %}
-          <tr>
+          <tr class="status-{{ r.status }}"
+              title="{{ r.get_status_display }}"
             <td class="text-nowrap">{{ r.target_month_display }}</td>
             <td>{{ r.client.name }}</td>
             <td>{{ r.store_name }}</td>

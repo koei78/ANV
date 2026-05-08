@@ -1,5 +1,6 @@
 from django import forms
-from .models import Client, Partner, Worker, WorkRecord, CompanySettings, Invoice, SalesRep
+from django.contrib.auth.models import User
+from .models import Client, Partner, Worker, WorkRecord, CompanySettings, Invoice, SalesRep, UserProfile
 
 
 def bootstrap_fields(form):
@@ -126,6 +127,37 @@ class InvoiceForm(forms.ModelForm):
         )
         bootstrap_fields(self)
         self.fields['tax_rate'].widget.attrs.update({'min': '0', 'max': '30'})
+
+
+class UserCreateForm(forms.Form):
+    username = forms.CharField(max_length=150, label='ユーザー名')
+    password = forms.CharField(
+        widget=forms.PasswordInput(), label='パスワード',
+        min_length=8, help_text='8文字以上'
+    )
+    role = forms.ChoiceField(choices=UserProfile.ROLE_CHOICES, label='権限')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        bootstrap_fields(self)
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError('このユーザー名は既に使用されています。')
+        return username
+
+
+class UserUpdateForm(forms.Form):
+    role = forms.ChoiceField(choices=UserProfile.ROLE_CHOICES, label='権限')
+    password = forms.CharField(
+        widget=forms.PasswordInput(), label='新しいパスワード',
+        required=False, help_text='変更する場合のみ入力'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        bootstrap_fields(self)
 
 
 class CompanySettingsForm(forms.ModelForm):
